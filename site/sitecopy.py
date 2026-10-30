@@ -56,7 +56,7 @@ _PSY = {'Clairvoyant', 'Psychic', 'Clairaudient', 'Spirit', 'Astrology', 'Healin
 def _keepf(r): return bool(set(r['tags']) & _PSY)
 T = {
  'keep': _keep, 'keep_featured': _keepf, 'lp': 'psychics', 'fp': 'featured-psychics', 'dp': 'psychics', 'unit': 'psychics & intuitives',
- 'email': 'customersupport@namastebookshop.com', 'dir_name': 'Psychics',
+ 'email': 'claim@namastebookshop.com', 'dir_name': 'Psychics',
  'featured_intro': lambda r: f'You can sit with {E(r["name"])} in person at Namaste Bookshop, 2 West 14th Street, between Union Square and Sixth Avenue. Reserve a time through the shop\'s calendar, or phone the readings desk to see who is reading today.',
  'ftitle': lambda r: f'{r["name"]}: Psychic & Intuitive Reader, Namaste Bookshop NYC',
  'fdesc': lambda r: f'Meet {r["name"]}: {r["specialty"]}. Reads in person at Namaste Bookshop, 2 W 14th St, Manhattan. Session lengths, prices, usual days and how to book.',
