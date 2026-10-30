@@ -1,0 +1,14 @@
+{
+ "brand": "NYC Psychic Readers",
+ "short_name": "NYC Psychics",
+ "site_url": "https://nycpsychicreaders.com",
+ "storefront": "NYC Psychic Readers",
+ "REVIEW_URL": "",
+ "GOOGLE_SITE_VERIFICATION": "",
+ "bestseller_collections": ["oracle-cards"],
+ "siblings": [],
+ "icon": "tag",
+ "theme": {"ink": "#0b2b33", "paper": "#f4faf9", "accent": "#5eead4",
+           "fonts": "https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Source+Sans+3:wght@400;600;700&display=swap"},
+ "include_no_photo": false
+}
