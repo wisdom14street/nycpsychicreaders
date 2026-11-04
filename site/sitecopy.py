@@ -62,7 +62,7 @@ T = {
  'fdesc': lambda r: f'Meet {r["name"]}: {r["specialty"]}. Reads in person at Namaste Bookshop, 2 W 14th St, Manhattan. Session lengths, prices, usual days and how to book.',
  'fhub_title': 'Featured Psychics, Mediums & Healers at Namaste Bookshop', 'fhub_h1': 'Featured psychics and intuitives at Namaste Bookshop',
  'fhub_desc': 'Clairvoyants, mediums, astrologers and energy healers who see clients at Namaste Bookshop on West 14th Street, Manhattan.',
- 'fhub_lead': 'Clairvoyants, mediums, astrologers and energy healers who see clients at Namaste Bookshop on West 14th Street. Their specialties, session prices and usual days below come from each reader\'s page on namastebookshop.com. Namaste Bookshop and this guide have the same owner, which is why they are featured.',
+ 'fhub_lead': 'Explore clairvoyants, mediums, astrologers and energy healers through Namaste Bookshop on West 14th Street. These profiles include published reference prices and usual schedules. Check the shop\'s current reader calendar and Square booking page for availability and final prices. Namaste Bookshop and this guide have the same owner, which is why these profiles are featured.',
  'ltitle': lambda x: f'{x["name"]}: Psychic Readings, {x["neighborhood"].split(" (")[0]}, {x["borough"]} NYC',
  'ldesc': lambda x: f'{x["name"]} in {x["neighborhood"]}, {x["borough"]}. {x["note"]} Contact details confirmed on their own website.',
  'listing_note': 'Listed for free.', 'also_in': lambda b: f'Other psychics in {b}', 'all_in': lambda b: f'Every psychic we list in {b}', 'or_featured': 'Featured intuitives near Union Square',

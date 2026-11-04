@@ -4,6 +4,7 @@ import json, os, re
 from html import escape as E
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOOK = 'https://namastebookshop.com/pages/book-a-reading'
+CALENDAR = 'https://namastebookshop.com/pages/calendar'
 NB = {'name': 'Namaste Bookshop', 'street': '2 W 14th St', 'locality': 'New York', 'postal': '10011', 'phone': '212-645-0141', 'url': 'https://namastebookshop.com/', 'neighborhood': 'Union Square'}
 BORO = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island']
 def slug(s): return re.sub(r'[^a-z0-9]+', '-', s.lower()).strip('-')
@@ -46,7 +47,7 @@ def lcard(T, x):
             f'<p>{E(x["note"])}</p><p><a href="/{T["lp"]}/{x["slug"]}/">Details &rarr;</a></p></article>')
 def fcard(T, r):
     return (f'<a class="fcard" href="/{T["fp"]}/{r["slug"]}/"><img src="{E(r["image"])}" alt="{E(r["name"])}" width="400" height="400" loading="lazy">'
-            f'<div><span class="badge">Featured</span><b>{E(r["name"])}</b><small>{E(r["specialty"])}</small></div></a>')
+            f'<div><span class="badge">{"Confirm availability" if r.get("availability_note") else "Featured"}</span><b>{E(r["name"])}</b><small>{E(r["specialty"])}</small></div></a>')
 def featured_grid(T, F, n=None): return '<div class="fgrid">' + ''.join(fcard(T, r) for r in (F[:n] if n else F)) + '</div>'
 def lgrid(T, xs): return '<div class="dgrid">' + ''.join(lcard(T, x) for x in xs) + '</div>'
 
@@ -70,7 +71,7 @@ def pages(T, S):
     out = []
     # data file
     dd = os.path.join(HERE, '..', 'dist', 'data'); os.makedirs(dd, exist_ok=True)
-    json.dump({'site': S.SITE, 'featured': [dict(name=r['name'], page=f'{S.SITE}/{fp}/{r["slug"]}/', specialty=r['specialty'], booking=BOOK, source_url=r['source_url'], location=NB) for r in F],
+    json.dump({'site': S.SITE, 'featured': [dict(name=r['name'], page=f'{S.SITE}/{fp}/{r["slug"]}/', specialty=r['specialty'], booking=BOOK, source_url=r['source_url'], location=NB, availability_note=r.get('availability_note', 'Confirm current times on the booking page.')) for r in F],
                'listings': [dict(x, page=f'{S.SITE}/{lp}/{x["slug"]}/') for x in L]}, open(os.path.join(dd, 'listings.json'), 'w'), indent=1, ensure_ascii=False)
     claim_href = lambda x: f'/claim/?listing={x["slug"]}'
     # featured profiles
@@ -78,20 +79,23 @@ def pages(T, S):
         svc = ''.join(f'<tr><td>{E(a)}</td><td>{E(b)}</td></tr>' for a, b in r['services'])
         sch = ''.join(f'<li>{E(d)}: {E(h)}</li>' for d, h in r['schedule'])
         body = f'''<div class="prof"><img src="{E(r['image'])}" alt="{E(r['name'])}" width="600" height="600"><div>
-<span class="badge">Featured &middot; reads at Namaste Bookshop</span><p class="lead">{E(r['specialty'])}</p>{tags(r['tags'], {})}
-<p>{T['featured_intro'](r)}</p>
+<span class="badge">{"Reader profile &middot; confirm availability" if r.get('availability_note') else "Featured &middot; reads at Namaste Bookshop"}</span><p class="lead">{E(r['specialty'])}</p>{tags(r['tags'], {})}
+<p>{E(r['availability_note']) if r.get('availability_note') else T['featured_intro'](r)}</p>
 <p><i>&ldquo;{E(r['hook'])}&rdquo;</i> <span class="small">(from the reader's page on namastebookshop.com)</span></p>
 <div class="btns"><a class="btn" href="{BOOK}" rel="noopener">Book a reading</a><a class="btn ghost" href="{E(r['book_direct'])}" rel="noopener nofollow">Book {E(r['name'].split(' (')[0])} directly</a></div>
-{('<h2>Sessions and prices</h2><table class="svc">' + svc + '</table><p class="small">As listed on namastebookshop.com; confirm the price when you book.</p>') if svc else '<p>Session options are shown when you book.</p>'}
-<h2>When to find them</h2>{('<ul>' + sch + '</ul>') if sch else '<p>' + E(r['schedule_note'] or 'Schedule varies; the booking page shows current times.') + '</p>'}
+{('<h2>Published session prices</h2><table class="svc">' + svc + '</table><p class="small">Reference prices from the reader profile on namastebookshop.com. Online totals may differ; review the current service, total price and cancellation terms on Square before confirming.</p>') if svc else '<p>Session options and current prices are shown when you book.</p>'}
+<h2>Check current availability</h2><p><a href="{CALENDAR}">See Namaste Bookshop\'s reader calendar</a>. Choose an available time and confirm your appointment on Square; opening a booking link does not reserve a session.</p>
+{('<h3>Usual schedule (New York time)</h3><ul>' + sch + '</ul><p class="small">Schedules can change. Confirm your date and time on the booking page before travelling.</p>') if sch and not r.get('availability_note') else '<p>' + E(r.get('availability_note') or r['schedule_note'] or 'Schedule varies; the booking page shows current times.') + '</p>'}
 <h2>Where</h2><p>Inside Namaste Bookshop, 2 West 14th Street (south side, just west of Fifth Avenue), Manhattan 10011. Readings line: <a href="tel:+12126450141">212-645-0141</a>. <a href="/visit/">How to find the shop</a>.</p>
 <p class="small">Source: <a href="{E(r['source_url'])}" rel="noopener">{E(r['name'])} on namastebookshop.com</a>. Featured placement: these readers work at Namaste Bookshop, which shares an owner with this site.</p>
 </div></div>'''
         ld = {'@context': 'https://schema.org', '@type': 'Person', 'name': r['name'], 'image': r['image'], 'jobTitle': r['specialty'], 'url': f'{S.SITE}/{fp}/{r["slug"]}/',
-              'sameAs': [r['source_url']], 'worksFor': nb_ld()}
-        if r['services']:
-            ld['makesOffer'] = [{'@type': 'Offer', 'name': a, 'price': re.sub(r'[^\d.]', '', b), 'priceCurrency': 'USD'} for a, b in r['services'] if re.search(r'\d', b)]
-        out.append({'path': f'/{fp}/{r["slug"]}/', 'title': T['ftitle'](r), 'desc': T['fdesc'](r), 'h1': E(r['name']), 'html': body, 'ld': [ld], 'wide': True,
+              'sameAs': [r['source_url']]}
+        if not r.get('availability_note'):
+            ld['worksFor'] = nb_ld()
+        # Profile reference prices are not current purchasable offers; Square owns the final totals.
+        desc = (f'Published profile for {r["name"]}. Contact Namaste Bookshop at 212-645-0141 to confirm current availability and session details.' if r.get('availability_note') else T['fdesc'](r))
+        out.append({'path': f'/{fp}/{r["slug"]}/', 'title': T['ftitle'](r), 'desc': desc, 'h1': E(r['name']), 'html': body, 'ld': [ld], 'wide': True,
                     'crumbs': [('Home', '/'), (T['dir_name'], f'/{dp}/'), ('Featured', f'/{fp}/'), (r['name'], f'/{fp}/{r["slug"]}/')]})
     out.append({'path': f'/{fp}/', 'title': T['fhub_title'], 'desc': T['fhub_desc'], 'h1': T['fhub_h1'], 'wide': True,
                 'html': f'<p class="lead">{T["fhub_lead"]}</p><div class="btns"><a class="btn" href="{BOOK}" rel="noopener">See the booking page</a><a class="btn ghost" href="/visit/">How to find the shop</a></div>{featured_grid(T, F)}',

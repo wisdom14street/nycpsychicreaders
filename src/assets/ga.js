@@ -1,6 +1,6 @@
 /* Google Analytics 4 events for the storefronts. Every call is guarded: if gtag is blocked or missing, nothing breaks.
-   view_item on product pages, generate_lead on call / email / booking / directions / claim-listing links.
-   add_to_cart and begin_checkout are sent from cart.js. */
+   Clicks describe intent only: no lead, booking completion or purchase is inferred.
+   add_to_cart and begin_checkout are sent from cart.js; paid sales must come from Shopify. */
 (function(){
   function ga(n,p){try{if(typeof window.gtag==='function')window.gtag('event',n,p||{})}catch(_){}}
   window.niGA=ga;
@@ -12,20 +12,27 @@
       if(it)ga('view_item',{currency:'USD',value:it.price,items:[it]});
     }
   }catch(_){}
-  var BOOK=/(book\.squareup\.com|squareup\.com\/appointments|square\.site|setmore\.com|calendly\.com|acuityscheduling\.com|as\.me\/|vagaro\.com|booksy\.com|schedulicity\.com|simplybook|fresha\.com|\/book-a-reading|\/booking)/i,
-      MAPS=/(google\.[a-z.]+\/maps|maps\.google\.|goo\.gl\/maps|maps\.app\.goo\.gl|maps\.apple\.com)/i;
+  var BOOK_HOSTS=['book.squareup.com','squareup.com','setmore.com','calendly.com','acuityscheduling.com','as.me','vagaro.com','booksy.com','schedulicity.com','simplybook.me','fresha.com'],
+      MAP_HOSTS=['maps.google.com','maps.app.goo.gl','maps.apple.com'];
+  function hostIs(host,base){return host===base||host.endsWith('.'+base)}
   function kind(a){
     var h=a.getAttribute('href')||'';
     if(/^tel:/i.test(h))return'phone';
     if(/^mailto:/i.test(h))return/^mailto:claim@/i.test(h)?'claim':'email';
     var u;try{u=new URL(h,location.href)}catch(_){return''}
     if(u.origin===location.origin&&/^\/claim(\/|$)/.test(u.pathname))return'claim';
-    if(MAPS.test(u.href))return'directions';
-    if(BOOK.test(u.href)||(u.origin!==location.origin&&/^\s*book\b/i.test(a.textContent||'')))return'booking';
+    if(!/^https?:$/.test(u.protocol))return'';
+    if(MAP_HOSTS.includes(u.hostname)||(/^(www\.)?google\.[a-z.]+$/.test(u.hostname)&&/^\/maps(\/|$)/.test(u.pathname))||(u.hostname==='goo.gl'&&u.pathname.startsWith('/maps')))return'directions';
+    if(BOOK_HOSTS.some(function(h){return hostIs(u.hostname,h)})||((u.hostname==='namastebookshop.com'||u.hostname==='www.namastebookshop.com')&&/^\/pages\/(book-a-reading|phone-tarot-readings)\/?$/.test(u.pathname)))return'booking';
+    if((u.hostname==='namastebookshop.com'||u.hostname==='www.namastebookshop.com')&&!a.hasAttribute('data-checkout'))return'shop';
     return'';
   }
   document.addEventListener('click',function(e){try{
     var a=e.target&&e.target.closest&&e.target.closest('a[href]');if(!a)return;var k=kind(a);if(!k)return;
-    ga('generate_lead',{link_type:k,link_url:(a.getAttribute('href')||'').slice(0,200),link_text:(a.textContent||'').trim().replace(/\s+/g,' ').slice(0,100),transport_type:'beacon'});
+    var u=new URL(a.getAttribute('href'),location.href);
+    // Never send email subjects/bodies, query parameters, fragments or form content.
+    var destination=/^https?:$/.test(u.protocol)?u.origin+u.pathname:u.protocol;
+    ga(k+'_click',{link_type:k,link_url:destination.slice(0,200),page_path:location.pathname,
+      site_brand:(window.NI_CART||{}).brand||'NYC Psychic Readers',transport_type:'beacon'});
   }catch(_){}},true);
 })();

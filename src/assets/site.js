@@ -56,14 +56,18 @@
   // product page: live price + stock from the Shopify store
   const P=window.NI_PRODUCT;
   if(P){
-    const buy=$('#buy'),price=$('#price'),stock=$('#stock'),sel=$('#variant'),cmp=$('#cmp');let variants=null;
-    function setV(id){const v=variants&&variants.find(v=>String(v.id)===String(id));buy.dataset.v=id;if(sel){const o=sel.options[sel.selectedIndex];buy.dataset.vt=o?o.textContent.replace(/ \(sold out\)$/,''):''}if(!v)return;buy.dataset.p=(v.price/100).toFixed(2);buy.dataset.max=(v.quantity_rule&&v.quantity_rule.max)||'';
+    const buy=$('#buy'),price=$('#price'),stock=$('#stock'),sel=$('#variant'),cmp=$('#cmp');
+    // The build snapshot keeps variant prices consistent even when live lookup is unavailable.
+    let variants=(P.variants||[]).map(v=>({...v,price:Math.round(Number(v.price)*100)})),liveChecked=false;
+    function setV(id){const v=variants.find(v=>String(v.id)===String(id));buy.dataset.v=id;if(sel){const o=sel.options[sel.selectedIndex];buy.dataset.vt=o?o.textContent.replace(/ \(sold out\)$/,''):''}
+      if(!v){buy.disabled=true;buy.setAttribute('aria-disabled','true');buy.textContent='Unavailable';stock.classList.add('out');stock.querySelector('span').textContent='This option is no longer available';return}buy.dataset.p=(v.price/100).toFixed(2);buy.dataset.max=(v.quantity_rule&&v.quantity_rule.max)||'';
       price.textContent=money(v.price/100);if(v.compare_at_price&&v.compare_at_price>v.price){cmp.hidden=false;cmp.textContent=money(v.compare_at_price/100)}else cmp.hidden=true;
-      stock.classList.toggle('out',!v.available);stock.querySelector('span').textContent=v.available?'In stock':'Sold out';buy.textContent=v.available?'Add to cart':'Sold out';buy.disabled=!v.available;buy.setAttribute('aria-disabled',String(!v.available))}
+      stock.classList.toggle('out',!v.available);stock.querySelector('span').textContent=v.available?(liveChecked?'In stock':'Confirm current availability at checkout'):'Sold out';buy.textContent=v.available?'Add to cart':'Sold out';buy.disabled=!v.available;buy.setAttribute('aria-disabled',String(!v.available))}
     if(sel)sel.onchange=e=>setV(e.target.value);
-    fetch(`${P.shop}/products/${P.handle}.js`).then(r=>r.ok?r.json():Promise.reject(r.status)).then(p=>{variants=p.variants;
-      if(sel)[...sel.options].forEach(o=>{const v=variants.find(v=>String(v.id)===o.value);if(v)o.disabled=!v.available});
-      setV(sel?sel.value:(variants.find(v=>v.available)||variants[0]).id)}).catch(()=>{stock.querySelector('span').textContent='In stock (checked at checkout)'});
+    fetch(`${P.shop}/products/${P.handle}.js`).then(r=>r.ok?r.json():Promise.reject(r.status)).then(p=>{
+      if(!Array.isArray(p.variants))throw new Error('No variants');variants=p.variants;liveChecked=true;
+      if(sel)[...sel.options].forEach(o=>{const v=variants.find(v=>String(v.id)===o.value);o.disabled=!v||!v.available});
+      setV(buy.dataset.v)}).catch(status=>{if(status===404){variants=[];setV(buy.dataset.v)}else{setV(buy.dataset.v)}});
     $$('.th').forEach(b=>b.onclick=()=>{const m=$('#mainimg');m.removeAttribute('srcset');m.src=b.dataset.src;$$('.th').forEach(x=>x.classList.remove('on'));b.classList.add('on')});
   }
   // quiz: combine the chosen answers' filters and recommend real in-stock products

@@ -12,6 +12,7 @@ sys.path[:0] = [HERE, os.path.join(ROOT, 'site')]
 from catmap import category
 import brands as BR
 import sitecopy as C
+from attribution import tag_shop_links, tag_shop_url
 # optional per-site overrides (used by non-incense sites such as the crystal market)
 category = getattr(C, 'category', category)
 BR = getattr(C, 'BR', BR)
@@ -35,6 +36,7 @@ GA_HEAD = '' if (PREVIEW or not GA_ID) else (f'<script async src="https://www.go
     f'<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}gtag("js",new Date());gtag("config","{GA_ID}",' + json.dumps({'site_brand': BRAND}).replace('</', '<\\/') + ');</script>')
 GA_FOOT = '<script src="/assets/ga.js" defer></script>' if GA_HEAD else ''
 CART_DOMAIN = SITE.split('://', 1)[-1].split('/')[0].removeprefix('www.')
+CART_ATTR = '?' + tag_shop_url(SHOP + '/' + CART_ATTR, CART_DOMAIN, 'checkout').split('?', 1)[1]
 def single_vid(x):
     """variant id when a card can go straight to the cart (one listing, one in-stock option), else 0"""
     av = [v for v in x['variants'] if v['available']]
@@ -251,11 +253,11 @@ OG_DEFAULT = SITE + '/og.jpg'
 def page(path, title, desc, body, extra_head='', canonical=True, index=True, og_image=None):
     url = SITE + path; ogi = og_image if (og_image and path.startswith('/products/') and og_image.startswith('http')) else OG_DEFAULT; ogcard = ogi == OG_DEFAULT
     ogx = (f'<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/jpeg">' if ogcard else '') + f'<meta property="og:image:alt" content="{E(BRAND + ': ' + P2C['og_tag'] + '. Inside Namaste Bookshop, 2 W 14th St, NYC') if ogcard else E(title)}"><meta name="twitter:image:alt" content="{E(BRAND) if ogcard else E(title)}">'
-    robots = '<meta name="robots" content="noindex,nofollow">' if PREVIEW else ''
+    robots = '<meta name="robots" content="noindex,nofollow">' if PREVIEW else ('<meta name="robots" content="noindex">' if not index else '')
     gsv = f'<meta name="google-site-verification" content="{E(GSV)}">' if GSV and path == '/' else ''
     doc = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">{GA_HEAD}
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">{robots}{gsv}{f'<link rel="canonical" href="{url}">' if canonical else ''}
-<meta property="og:site_name" content="{E(BRAND)}"><meta property="og:type" content="website"><meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(desc)}"><meta property="og:url" content="{url}"><meta property="og:image" content="{E(ogi)}">{ogx}{ogx}{ogx}
+<meta property="og:site_name" content="{E(BRAND)}"><meta property="og:type" content="website"><meta property="og:title" content="{E(title)}"><meta property="og:description" content="{E(desc)}"><meta property="og:url" content="{url}"><meta property="og:image" content="{E(ogi)}">{ogx}
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(title)}"><meta name="twitter:description" content="{E(desc)}"><meta name="twitter:image" content="{E(ogi)}">
 <meta name="theme-color" content="{CFG['theme']['ink']}"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest">
 <link rel="preconnect" href="https://cdn.shopify.com"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="{CFG['theme']['fonts']}" rel="stylesheet">
@@ -263,7 +265,7 @@ def page(path, title, desc, body, extra_head='', canonical=True, index=True, og_
 <body>{nav()}<main id="main">{body}</main>{footer()}<div class="actionbar"><a href="tel:{TEL}">Call</a><a href="{DIRECTIONS}" rel="noopener" target="_blank">Directions</a><a href="/visit/">Hours</a></div>{cart_boot()}<script src="/assets/site.js" defer></script><script src="/assets/ux.js" defer></script>{GA_FOOT}</body></html>'''
     out = os.path.join(DIST, path.strip('/'), 'index.html') if path.endswith('/') else os.path.join(DIST, path.strip('/'))
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    open(out, 'w').write(doc)
+    open(out, 'w').write(tag_shop_links(doc, CART_DOMAIN, path))
     if index and canonical: SITEMAP.append(path)
 
 def tag_of(x): return FAM_NAME.get(x['family']) or AISLES[x['aisle']][0]
@@ -545,11 +547,12 @@ for x in products:
     body = f'''{crumbs_html(cr)}<section class="wrap pdp" data-handle="{x['handle']}"><div class="gallery"><div class="main"><img id="mainimg" src="{img(imgs[0],1200)}" srcset="{srcset(imgs[0],(600,900,1200))}" sizes="(min-width:900px) 55vw,100vw" alt="{E(x['title'])}" width="1200" height="1200" fetchpriority="high"></div>{f'<div class="thumbs">{gallery}</div>' if len(imgs)>1 else ''}</div>
 <div class="info"><span class="tag" style="--c:{a[4]}">{E(a[0])}</span><h1>{E(x['title'])}</h1><p class="pprice">{cmp_} <span id="price">{money(v0['price'])}</span></p><p class="stock" id="stock"><i></i><span>In stock</span></p>{p2_instore(x)}{opts}{sibs}
 <button type="button" class="btn buy" id="buy" data-atc data-v="{v0['id']}" data-h="{x['handle']}" data-t="{E(x['title'])}" data-vt="{E(v0['title']) if len(x['variants']) > 1 else ''}" data-p="{float(v0['price']):.2f}" data-i="{E(img(imgs[0], 400))}" data-c="{x['aisle']}" data-k="{x['base']}">Add to cart</button>
+<noscript><p><a class="btn" href="{SHOP}/products/{x['handle']}">View options and buy at Namaste Bookshop</a></p></noscript>
 {p2_badges(True)}{p2set}
 <p class="note">Checkout opens on Shopify (namastebookshop.com), where you can choose shipping{" or in-store pickup" if x['pickup'] else ""} and review your order before paying.</p>
 {pk}<div class="desc">{''.join(f'<p>{s}</p>' for s in desc)}</div><dl class="facts">{''.join(f'<div><dt>{p}</dt><dd>{q}</dd></div>' for p, q in facts)}</dl><p class="small"><a href="/shipping/">Shipping</a> &middot; <a href="/returns/">Returns</a></p></div></section>{rows}{p2tail}'''
     page(f"/products/{x['handle']}/", f"{x['title']} | {BRAND}", C.PRODUCT_DESC(S, x, v0), body,
-         ldjson(ld) + ldjson(crumbs_ld(cr)) + f'<script>window.NI_PRODUCT={json.dumps({"handle": x["handle"], "cartAttr": CART_ATTR, "shop": SHOP})}</script>', og_image=None if x['noimg'] else img(imgs[0], 1200))
+         ldjson(ld) + ldjson(crumbs_ld(cr)) + f'<script>window.NI_PRODUCT={json.dumps({"handle": x["handle"], "cartAttr": CART_ATTR, "shop": SHOP, "variants": x["variants"]}).replace("</", "<\\/")}</script>', og_image=None if x['noimg'] else img(imgs[0], 1200))
 
 # ---- info pages ----
 def info(path, title, desc, h1, body_html, extra_head='', crumbs=True, wide=False, cr=None):
@@ -581,14 +584,13 @@ policy('/terms/', 'Terms of Service', 'terms-of-service', 'Purchases made throug
 page('/cart/', f'Your cart | {BRAND}', f'Review your {BRAND} cart and check out securely, or choose free pickup at {STORE_ADDR}.',
      f'<section class="wrap prose cartpage"><h1>Your cart</h1><p class="cmsg" role="status" aria-live="polite"></p><div data-cart-page><div class="cbody" data-cart-body><p>Loading your cart&hellip;</p></div></div>'
      f'<noscript><p>The cart needs JavaScript. Call <a href="tel:{TEL}">{PHONE}</a> and we will set your order aside.</p></noscript></section>',
-     '<meta name="robots" content="noindex">', canonical=False, index=False)
+     canonical=False, index=False)
 page('/404.html', f'Page not found | {BRAND}', 'Page not found', f'<section class="wrap prose"><h1>{E(C.NOT_FOUND)}</h1><p>The page you were looking for may have sold out or moved.</p><p><a class="btn" href="/shop/">Back to the shop</a></p></section>', canonical=False, index=False)
 
 # ---- sitemap / robots / CNAME ----
 open(os.path.join(DIST, '.nojekyll'), 'w').write('')
 if SITE.startswith('https://') and 'github.io' not in SITE: open(os.path.join(DIST, 'CNAME'), 'w').write(SITE.split('://', 1)[1] + '\n')
-today = datetime.date.today().isoformat()
-open(os.path.join(DIST, 'sitemap.xml'), 'w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join(f'<url><loc>{SITE}{u}</loc><lastmod>{today}</lastmod></url>' for u in SITEMAP) + '</urlset>')
+open(os.path.join(DIST, 'sitemap.xml'), 'w').write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + ''.join(f'<url><loc>{SITE}{u}</loc></url>' for u in SITEMAP) + '</urlset>')
 open(os.path.join(DIST, 'robots.txt'), 'w').write('User-agent: *\nDisallow: /\n' if PREVIEW else p2_robots())
 open(os.path.join(DIST, 'llms.txt'), 'w').write(p2_llms())
 summary = {'site': SITE, 'count': len(products), 'cards': len(leaders), 'aisles': {AISLES[k][0]: cat_count[k] for k in AISLE_KEYS}, 'brands': {BR.NAME[k]: n for k, n in brand_count.most_common()},

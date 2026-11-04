@@ -22,10 +22,10 @@
   }
   window.NI_CART_URL=checkoutUrl;
   function add(d,q){
-    q=q||1;let x=items.find(y=>String(y.v)===String(d.v));
+    q=q||1;let x=items.find(y=>String(y.v)===String(d.v));const before=x?x.q:0;
     if(x){x.q=Math.min(cap(x),x.q+q);x.out=false}
     else{x={v:String(d.v),h:d.h,t:d.t,vt:d.vt||'',p:+d.p,i:d.i||'',q:1,max:+d.max||0,c:d.c||'',ts:0};x.q=Math.min(cap(x),q);items.push(x)}
-    save();check([x],true);return x;
+    save();check([x],true);return {item:x,added:x.q-before};
   }
   // live price / stock from the Shopify store (same public endpoint the product pages use)
   const pend={};
@@ -102,8 +102,9 @@ ${pick}${url?`<a class="btn ccheck" href="${esc(url)}" rel="nofollow" data-check
     if(t.hasAttribute('data-cart-close')){if(drawer&&!drawer.hidden){e.preventDefault();close()}return}
     if(t.hasAttribute('data-atc')||t.hasAttribute('data-atc-items')){e.preventDefault();if(t.disabled||t.getAttribute('aria-disabled')==='true')return;
       let list;try{list=t.hasAttribute('data-atc-items')?JSON.parse(t.getAttribute('data-atc-items')):[t.dataset]}catch(_){return}
-      list.forEach(d=>add(d,+(d.q||1)));
-      try{const gi=list.map(d=>gaItem({v:d.v,t:d.t,vt:d.vt,p:d.p,q:+(d.q||1),c:d.c}));ga('add_to_cart',{currency:'USD',value:Math.round(gi.reduce((s,x)=>s+x.price*x.quantity,0)*100)/100,items:gi})}catch(_){}
+      const changes=list.map(d=>add(d,+(d.q||1)));
+      try{const gi=changes.filter(x=>x.added>0).map(x=>gaItem({...x.item,q:x.added}));if(gi.length)ga('add_to_cart',{currency:'USD',value:Math.round(gi.reduce((s,x)=>s+x.price*x.quantity,0)*100)/100,items:gi})}catch(_){}
+      if(!changes.some(x=>x.added>0)){open('This item is already at the quantity limit in your cart.');return}
       const lab=t.textContent;t.classList.add('added');t.textContent='Added ✓';setTimeout(()=>{t.textContent=lab;t.classList.remove('added')},1600);
       open(list.length>1?`Added ${list.length} items to your cart.`:`Added ${list[0].t} to your cart.`);return}
     const row=t.closest('[data-v]');const x=row&&items.find(y=>String(y.v)===row.dataset.v);if(!x)return;
